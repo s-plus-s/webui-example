@@ -1,0 +1,9 @@
+
+
+organization = ""
+project = ""
+repository_id = ""
+pat = ""
+output_path = "./data"
+start_date = "2023/01/01 00:00:00"
+duration_days = 30
