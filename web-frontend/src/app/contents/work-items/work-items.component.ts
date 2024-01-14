@@ -10,6 +10,10 @@ import {MetaDataService} from "../../common/api/meta-data.service";
 import {Field, FieldValue} from "../../common/model/field";
 import {
   CdkDrag,
+  CdkDragDrop,
+  CdkDragEnd,
+  CdkDragRelease,
+  CdkDragStart,
   CdkDropList, CdkDropListGroup,
 } from '@angular/cdk/drag-drop';
 import {MatListModule, MatSelectionList} from "@angular/material/list";
@@ -42,7 +46,8 @@ interface ProcessInfo {
 interface DisplayColumn {
   id: string,
   label: string,
-  isVisible: boolean
+  isVisible: boolean,
+  displayOrder: number
 }
 
 interface DynamicObject {
@@ -82,6 +87,8 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
     "id",
     "rev",
   ];
+
+  public dragDisplayColumn: DisplayColumn | undefined;
 
   // Raw MetaData
   public fields: FieldValue[] = [];
@@ -223,6 +230,19 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       "rev",
     ];
 
+    displayColumns.push({
+      id: "id",
+      label: "ID",
+      isVisible: true,
+      displayOrder: 0
+    });
+    displayColumns.push({
+      id: "rev",
+      label: "Rev",
+      isVisible: true,
+      displayOrder: 1
+    });
+
     // 選択されたプロセスを保持
     for(let processInfo of this.processInfos){
       if (processInfo.name === $event.source.value){
@@ -235,6 +255,7 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       }
     }
 
+    let displayOrder = 0;
     // 選択されたチケットの種類のフィールドを保持する。
     for(let [key, value] of this.selectedProcessInfos){
       for(let processField of value.fields){
@@ -250,8 +271,10 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
         displayColumns.push({
           id: processField.ReferenceId,
           label: processField.LabelText,
-          isVisible: false
+          isVisible: false,
+          displayOrder: displayOrder
         })
+        displayOrder++;
       }
     }
 
@@ -259,6 +282,12 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
     this.displayColumns = this.displayColumns.filter((x) => {
       return displayColumns.filter((y) => y.id === x.id).length > 0;
     })
+
+    // this.displayColumnsをdisplayOrderソートする。
+    this.displayColumns = this.displayColumns.sort(((a, b) => {return a.displayOrder > b.displayOrder ? 0 :1}))
+
+    console.log("this.displayColumns[displayColumns.length - 1]: {}", this.displayColumns[displayColumns.length - 1]);
+    displayOrder = this.displayColumns.length > 0 ? this.displayColumns[displayColumns.length - 1].displayOrder + 1 : 0;
 
     // 選択されたチケットの種類のフィールド
     for(let displayColumn of displayColumns){
@@ -270,18 +299,18 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       this.displayColumns.push({
         id: displayColumn.id, 
         label: displayColumn.label,
-        isVisible: false
+        isVisible: false,
+        displayOrder: displayOrder
       })
-      displayedColumns.push(displayColumn.id)
+      displayOrder++;
+      
     }
 
-    for(let displayedColumn of this.displayedColumns){
-      this.displayColumns.push({
-        id: displayedColumn,
-        label: displayedColumn,
-        isVisible: true
-      })
+    for(let displayColumn of this.displayColumns){
+      if(!displayColumn.isVisible) continue;
+      displayedColumns.push(displayColumn.id)
     }
+    this.displayedColumns = displayedColumns;
   }
 
   onClickSelectedField($event: boolean) {
@@ -298,4 +327,53 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       }
     }
   }
+
+  onDragEnded($event: CdkDragEnd<any>, displayColumn: DisplayColumn) {
+    // console.log($event);
+    // D&Dをキャンセルする
+    console.log("onDragEnded - displayColumn: {}", displayColumn);
+
+  }
+
+  onDragStarted($event: CdkDragStart<any>, displayColumn: DisplayColumn) {
+    console.log($event);
+    console.log(displayColumn);
+    this.dragDisplayColumn = displayColumn;
+  }
+
+  onDragReleased($event: CdkDragRelease<any>, displayColumn: DisplayColumn) {
+
+    if (this.dragDisplayColumn === undefined) return;
+
+    console.log("this.dragDisplayColumn: {}", this.dragDisplayColumn);
+    console.log("displayColumn: {}", displayColumn);
+    console.log("$event: {}", $event);
+
+
+    let sourceDisplayOrder = this.dragDisplayColumn.displayOrder;
+    let targetDisplayOrder = displayColumn.displayOrder;
+    this.dragDisplayColumn.displayOrder = targetDisplayOrder;
+
+    displayColumn.displayOrder = sourceDisplayOrder;
+
+    let displayColumns: DisplayColumn[] = [];
+    for(let displayColumnItem of this.displayColumns){
+
+      let displayOrderNumber = displayColumn.id === displayColumnItem.id ? sourceDisplayOrder : this.dragDisplayColumn.id === displayColumnItem.id ? targetDisplayOrder : displayColumnItem.displayOrder;
+      let displayColumnTemp: DisplayColumn =  {
+        id: displayColumnItem.id, 
+        label: displayColumnItem.label,
+        isVisible: displayColumnItem.isVisible,
+        displayOrder: displayOrderNumber
+      }
+      displayColumns.push(displayColumnTemp);
+    }
+
+    this.displayColumns = [...displayColumns];
+  }
+
+  onDropListDropped($event: CdkDragDrop<any,any,any>) {
+    console.log("onDropListDropped - $event: {}", $event);
+  }
+    
 }

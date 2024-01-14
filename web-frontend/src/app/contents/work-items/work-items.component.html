@@ -15,9 +15,17 @@
         }
       </mat-select>
     </mat-form-field>
-    <mat-selection-list #selectedFileds>
+    <mat-selection-list cdkDropList #selectedFileds (cdkDropListDropped)="onDropListDropped($event)" >
       @for (displayColumn of displayColumns; track displayColumn ) {
-        <mat-list-option [(selected)]="displayColumn.isVisible"  [value]="displayColumn.id" (selectedChange)="onClickSelectedField($event)" >{{displayColumn.label}} [{{displayColumn.id}}]</mat-list-option>
+        <mat-list-option 
+          cdkDrag 
+          [(selected)]="displayColumn.isVisible" 
+          [value]="displayColumn.id" 
+          (selectedChange)="onClickSelectedField($event)"
+          (cdkDragStarted)="onDragStarted($event, displayColumn)"
+          (cdkDragEnded)="onDragEnded($event, displayColumn)"
+          (cdkDragReleased)="onDragReleased($event, displayColumn)"
+           >{{displayColumn.label}} [{{displayColumn.id}}]</mat-list-option>
       }
     </mat-selection-list>
   </mat-expansion-panel>
