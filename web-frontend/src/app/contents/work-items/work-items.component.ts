@@ -215,6 +215,8 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
 
   onSelectionChangeProcesses($event: MatOptionSelectionChange<string>) {
 
+    let displayColumns: DisplayColumn[] = [];
+
     this.displayColumns = [];
     let displayedColumns = [
       "id",
@@ -233,12 +235,11 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       }
     }
 
-    // 選択されたチケットの種類のフィールド
+    // 選択されたチケットの種類のフィールドを保持する。
     for(let [key, value] of this.selectedProcessInfos){
-      console.log("value: {}", value);
       for(let processField of value.fields){
         // すでに表示カラムにあるフィールドは追加しない。
-        let findFields = this.displayColumns.filter((x) => x.id === processField.ReferenceId);
+        let findFields = displayColumns.filter((x) => x.id === processField.ReferenceId);
         if(findFields.length > 0){
           continue;
         }
@@ -246,13 +247,32 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
         if (processField.ReferenceId === undefined || processField.ReferenceId.length === 0){
           continue;
         }
-        this.displayColumns.push({
+        displayColumns.push({
           id: processField.ReferenceId,
           label: processField.LabelText,
           isVisible: false
         })
-        displayedColumns.push(processField.ReferenceId)
       }
+    }
+
+    // 選択されていないフィールドを削除する
+    this.displayColumns = this.displayColumns.filter((x) => {
+      return displayColumns.filter((y) => y.id === x.id).length > 0;
+    })
+
+    // 選択されたチケットの種類のフィールド
+    for(let displayColumn of displayColumns){
+      // すでに表示カラムにあるフィールドは追加しない。
+      let findFields = this.displayColumns.filter((x) => x.id === displayColumn.id);
+      if(findFields.length > 0){
+        continue;
+      }
+      this.displayColumns.push({
+        id: displayColumn.id, 
+        label: displayColumn.label,
+        isVisible: false
+      })
+      displayedColumns.push(displayColumn.id)
     }
 
     for(let displayedColumn of this.displayedColumns){
@@ -262,13 +282,9 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
         isVisible: true
       })
     }
-
-    console.log("this.displayColumns: {}", this.displayColumns);
   }
 
   onClickSelectedField($event: boolean) {
-    console.log("onClickSelectedField")
-    // this.displayedColumns = ["id", "rev"];
     for(let displayColumn of this.displayColumns){
       // 表示するにチェックが入っているフィールドを追加する。
       if(displayColumn.isVisible){
@@ -279,10 +295,7 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       }else{
         // 表示しないにチェックが入っているフィールドを削除する。
         this.displayedColumns = this.displayedColumns.filter((x) => x !== displayColumn.id);
-
       }
     }
-    console.log("this.displayColumns: {}", this.displayColumns);
-    console.log("this.displayedColumns: {}",  this.displayedColumns);
   }
 }
