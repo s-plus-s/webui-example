@@ -74,6 +74,10 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
 
   public isLoading: boolean = true;
 
+  // 表示できるカラム
+  public displayColumns: DisplayColumn[] = [];
+
+  // 表示するカラム
   public displayedColumns: string[] = [
     "id",
     "rev",
@@ -86,7 +90,6 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
 
   public processInfos: ProcessInfo[] = [];
 
-  public displayColumns: DisplayColumn[] = [];
 
   public values: DynamicObject[] = [];
 
@@ -118,49 +121,55 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
 
 
   ngOnInit(): void {
-    this.metaDataService.getMetaDataProcessesLayout().subscribe((processRoot: Process) => {
-      for(let process of processRoot.value){
-        let processInfo: ProcessInfo = {
-          name: process.name,
-          fields: []
-        }
 
-        // システムのフィールド
-        for(let systemControl of process.layout.systemControls){
-          let referenceId = systemControl.id;
-          let label = systemControl.label;
-          if(referenceId === undefined || label === undefined || referenceId.length === 0){
-            continue;
-          }
-          processInfo.fields.push({
-            ReferenceId: referenceId,
-            LabelText: label
-          })
-        }
-
-
-
-        // レイアウトのフィールド
-        for(let page of process.layout.pages){
-          for(let section of page.sections){
-            for(let group of section.groups){
-              for(let control of group.controls){
-                let referenceId = control.id;
-                let label = control.label;
-                processInfo.fields.push({
-                  ReferenceId: referenceId,
-                  LabelText: label
-                })
+    this.metaDataService.getMetaDataProcessesLayout().subscribe(
+      {
+        next: (processRoot: Process) => {
+          console.log(processRoot);
+          for(let process of processRoot.value){
+            let processInfo: ProcessInfo = {
+              name: process.name,
+              fields: []
+            }
+    
+            // システムのフィールド
+            for(let systemControl of process.layout.systemControls){
+              let referenceId = systemControl.id;
+              let label = systemControl.label;
+              if(referenceId === undefined || label === undefined || referenceId.length === 0){
+                continue;
+              }
+              processInfo.fields.push({
+                ReferenceId: referenceId,
+                LabelText: label
+              })
+            }
+            // レイアウトのフィールド
+            for(let page of process.layout.pages){
+              for(let section of page.sections){
+                for(let group of section.groups){
+                  for(let control of group.controls){
+                    let referenceId = control.id;
+                    let label = control.label;
+                    processInfo.fields.push({
+                      ReferenceId: referenceId,
+                      LabelText: label
+                    })
+                  }
+                }
               }
             }
+            this.processInfos.push(processInfo);
           }
+        },
+        error: (error) => {
+          console.log(error);
         }
-        this.processInfos.push(processInfo);
       }
-    })
+    );
 
 
-    this.metaDataService.getMetaDataFields().subscribe((field: Field) => {
+    this.metaDataService.getMetaDataFields().subscribe({ next: (field: Field) => {
       this.fields = field.value;
       for(let f of this.fields){
         this.selectedFields.push({
@@ -171,10 +180,13 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
           description: f.description
         });
       }
+    },
+    error: (error) => {
+      console.log(error);
+      }
     })
 
-    this.dataStoreService.getWorkItems().subscribe((workItems: WorkItem[]) => {
-
+    this.dataStoreService.getWorkItems().subscribe({next : (workItems: WorkItem[]) => {
       // workItemsをループで回して、フィールを動的に列挙してthis.valuesにフィールドを追加して、配列の追加する。
       for(let workItem of workItems){
         let dynamicObject: DynamicObject = {};
@@ -188,6 +200,10 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       this.dataSource = new MatTableDataSource<DynamicObject>(this.values);
       this.dataSource.paginator = this.paginator;
       this.isLoading = false;
+    },
+    error: (error) => {
+      console.log(error);
+      }
     });
   }
 
@@ -200,11 +216,12 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
   onSelectionChangeProcesses($event: MatOptionSelectionChange<string>) {
 
     this.displayColumns = [];
-    this.displayedColumns = [
+    let displayedColumns = [
       "id",
       "rev",
     ];
 
+    // 選択されたプロセスを保持
     for(let processInfo of this.processInfos){
       if (processInfo.name === $event.source.value){
         console.log(processInfo);
@@ -216,22 +233,16 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
       }
     }
 
-    for(let dicplayedColumn of this.displayedColumns){
-      this.displayColumns.push({
-        id: dicplayedColumn,
-        label: dicplayedColumn,
-        isVisible: true
-      })
-    }
-
     // 選択されたチケットの種類のフィールド
     for(let [key, value] of this.selectedProcessInfos){
       console.log("value: {}", value);
       for(let processField of value.fields){
+        // すでに表示カラムにあるフィールドは追加しない。
         let findFields = this.displayColumns.filter((x) => x.id === processField.ReferenceId);
         if(findFields.length > 0){
           continue;
         }
+        // 参照IDがないフィールドは追加しない。
         if (processField.ReferenceId === undefined || processField.ReferenceId.length === 0){
           continue;
         }
@@ -240,23 +251,38 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
           label: processField.LabelText,
           isVisible: false
         })
-        this.displayedColumns.push(processField.ReferenceId)
+        displayedColumns.push(processField.ReferenceId)
       }
     }
+
+    for(let displayedColumn of this.displayedColumns){
+      this.displayColumns.push({
+        id: displayedColumn,
+        label: displayedColumn,
+        isVisible: true
+      })
+    }
+
+    console.log("this.displayColumns: {}", this.displayColumns);
   }
 
   onClickSelectedField($event: boolean) {
-
-    this.displayedColumns = ["id", "rev"];
+    console.log("onClickSelectedField")
+    // this.displayedColumns = ["id", "rev"];
     for(let displayColumn of this.displayColumns){
+      // 表示するにチェックが入っているフィールドを追加する。
       if(displayColumn.isVisible){
         if(this.displayedColumns.filter((x) => x === displayColumn.id).length > 0){
           continue;
         }
         this.displayedColumns.push(displayColumn.id)
+      }else{
+        // 表示しないにチェックが入っているフィールドを削除する。
+        this.displayedColumns = this.displayedColumns.filter((x) => x !== displayColumn.id);
+
       }
     }
-    console.log(this.displayColumns);
-    console.log(this.displayedColumns);
+    console.log("this.displayColumns: {}", this.displayColumns);
+    console.log("this.displayedColumns: {}",  this.displayedColumns);
   }
 }
