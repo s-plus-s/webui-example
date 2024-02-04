@@ -11,9 +11,7 @@ import {Field, FieldValue} from "../../common/model/field";
 import {
   CdkDrag,
   CdkDragDrop,
-  CdkDragEnd,
   CdkDragRelease,
-  CdkDragStart,
   CdkDropList, CdkDropListGroup,
 } from '@angular/cdk/drag-drop';
 import {MatListModule, MatSelectionList} from "@angular/material/list";
@@ -328,52 +326,39 @@ export class WorkItemsComponent implements AfterViewInit, OnInit {
     }
   }
 
-  onDragEnded($event: CdkDragEnd<any>, displayColumn: DisplayColumn) {
-    // console.log($event);
-    // D&Dをキャンセルする
-    console.log("onDragEnded - displayColumn: {}", displayColumn);
 
-  }
+  onDropListDropped($event: CdkDragDrop<any,any,any>) {
 
-  onDragStarted($event: CdkDragStart<any>, displayColumn: DisplayColumn) {
-    console.log($event);
-    console.log(displayColumn);
-    this.dragDisplayColumn = displayColumn;
-  }
+    let currentIndex = $event.currentIndex;
+    let previousIndex = $event.previousIndex;
 
-  onDragReleased($event: CdkDragRelease<any>, displayColumn: DisplayColumn) {
-
-    if (this.dragDisplayColumn === undefined) return;
-
-    console.log("this.dragDisplayColumn: {}", this.dragDisplayColumn);
-    console.log("displayColumn: {}", displayColumn);
-    console.log("$event: {}", $event);
-
-
-    let sourceDisplayOrder = this.dragDisplayColumn.displayOrder;
-    let targetDisplayOrder = displayColumn.displayOrder;
-    this.dragDisplayColumn.displayOrder = targetDisplayOrder;
-
-    displayColumn.displayOrder = sourceDisplayOrder;
-
+    // Drag&Dropの順番を変更する。
     let displayColumns: DisplayColumn[] = [];
-    for(let displayColumnItem of this.displayColumns){
-
-      let displayOrderNumber = displayColumn.id === displayColumnItem.id ? sourceDisplayOrder : this.dragDisplayColumn.id === displayColumnItem.id ? targetDisplayOrder : displayColumnItem.displayOrder;
+    for(let displayColumn of this.displayColumns){
+      let displayOrderNumber = displayColumn.displayOrder;
+      if (currentIndex > previousIndex){
+        if (currentIndex >= displayOrderNumber && displayOrderNumber > previousIndex){
+          displayOrderNumber--;
+        }else if (displayOrderNumber === previousIndex){
+          displayOrderNumber = currentIndex;
+        }
+      }else{
+        if (currentIndex <= displayOrderNumber && displayOrderNumber < previousIndex){
+          displayOrderNumber++;
+        }else if (displayOrderNumber === previousIndex){
+          displayOrderNumber = currentIndex;
+        }
+      }
       let displayColumnTemp: DisplayColumn =  {
-        id: displayColumnItem.id, 
-        label: displayColumnItem.label,
-        isVisible: displayColumnItem.isVisible,
+        id: displayColumn.id, 
+        label: displayColumn.label,
+        isVisible: displayColumn.isVisible,
         displayOrder: displayOrderNumber
       }
       displayColumns.push(displayColumnTemp);
     }
-
-    this.displayColumns = [...displayColumns];
-  }
-
-  onDropListDropped($event: CdkDragDrop<any,any,any>) {
-    console.log("onDropListDropped - $event: {}", $event);
+    displayColumns = [...displayColumns.sort((a, b) => a.displayOrder - b.displayOrder)];
+    this.displayColumns = displayColumns;
   }
     
 }
